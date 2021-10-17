@@ -15,7 +15,6 @@ Many states have Black, Male Black, and Female Black.
 
 import os
 from glob import glob
-import urllib2
 
 import pandas as pd
 
@@ -86,13 +85,12 @@ for line in states_table.split('\n'):
 
     two_letter_abbrev[state] = abbrev
 
-
 group_labels = {
-          'total' : 'total', 'male' : 'male', 'female' : 'female',
-          'white' : 'white', 'wm' : 'white male' , 'wf' : 'white female',
-          'black' : 'black', 'bm' : 'black male', 'bf' : 'black female', 
+    'total': 'total', 'male': 'male', 'female': 'female',
+    'white': 'white', 'wm': 'white male', 'wf': 'white female',
+    'black': 'black', 'bm': 'black male', 'bf': 'black female',
 }
-groups_long2short = dict( [(group_labels[k],k) for k in group_labels] )
+groups_long2short = dict([(group_labels[k], k) for k in group_labels])
 
 groups = ['total', 'male', 'female',
           'white', 'wm', 'wf',
@@ -106,8 +104,10 @@ try:
 except NameError:
     pass
 
+
 def remove_digits(s):
-    return ''.join( [x for x in s if x not in '0123456789'] )
+    return ''.join([x for x in s if x not in '0123456789'])
+
 
 # Download life tables from CDC FTP site
 n_life_table_csv_files = len(glob(lt_dir + '*.csv'))
@@ -118,9 +118,8 @@ if n_life_table_csv_files != 426:
     for state in two_letter_abbrev:
         s = state.lower().replace(' ', '_')
         state_url = cdc_url + 'lewk4_{}.xlsx'.format(s)
-        url = urllib2.urlopen(state_url)
-     
-        xls = pd.ExcelFile(url)
+
+        xls = pd.ExcelFile(state_url)
         sheets = xls.sheet_names
         for sheet in xls.sheet_names:
             group = remove_digits(sheet)
@@ -128,9 +127,8 @@ if n_life_table_csv_files != 426:
 
             df = xls.parse(sheet, skiprows=range(3),
                            index_col=0)
-     
-            df.to_csv('{}{}_{}.csv'.format(lt_dir,s,group))
 
+            df.to_csv('{}{}_{}.csv'.format(lt_dir, s, group))
 
 
 def life_table(state_abbrev, demographic_group):
@@ -157,25 +155,22 @@ def life_table(state_abbrev, demographic_group):
 
     state = state.lower().replace(' ', '_')
 
-
     try:
         demographic_group = demographic_group.lower()
         if len(demographic_group) > 2:
-           demographic_group = groups_long2short[demographic_group]
+            demographic_group = groups_long2short[demographic_group]
     except KeyError:
         raise ValueError('"{}" not a valid group.'.format(demographic_group))
 
-    
     s = '{}{}_{}.csv'.format(lt_dir, state, demographic_group)
 
     if os.path.exists(s):
         df = pd.read_csv(s)
     else:
         raise ValueError('{} not a demographic group for {}.'.format(
-                              demographic_group, state_abbrev))
+            demographic_group, state_abbrev))
 
     return df['qx']
-
 
 
 if __name__ == '__main__':

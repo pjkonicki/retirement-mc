@@ -21,21 +21,22 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 
 from itertools import cycle
-lines = ["-","--","-.",":"]
+
+lines = ["-", "--", "-.", ":"]
 linecycler = cycle(lines)
 
-from cdc_life_tables import life_table
-import shiller
+import cdc_life_tables.cdc_life_tables
+import shiller.shiller
 
 # Historical financial data
-inflation = shiller.inflation.iloc[1:-1]
-stock_returns = shiller.stock_returns.iloc[1:-1]
-interest_rates = shiller.interest_rates.iloc[1:-1]
+inflation = shiller.shiller.inflation.iloc[1:-1]
+stock_returns = shiller.shiller.stock_returns.iloc[1:-1]
+interest_rates = shiller.shiller.interest_rates.iloc[1:-1]
 
 rand = np.random.random_sample
 
 
-def run_histories(starting_assets, 
+def run_histories(starting_assets,
                   yearly_expense,
                   stock_fraction,
                   starting_age,
@@ -77,7 +78,7 @@ def run_histories(starting_assets,
     """
 
     # Life table
-    table = life_table(state_abbrev, demographic_group)
+    table = cdc_life_tables.cdc_life_tables.life_table(state_abbrev, demographic_group)
 
     mc_histories = []
 
@@ -95,7 +96,7 @@ def run_histories(starting_assets,
             # Death this year.
             if age >= 110 or rand() <= table[int(age)]:
                 # Die at random point in year
-                current_assets -= expenses_per_year*rand()
+                current_assets -= expenses_per_year * rand()
                 break
 
             # Subtracting expenses for year
@@ -106,13 +107,13 @@ def run_histories(starting_assets,
             i = int(i)
 
             # Adjust expenses for inflation.
-            expenses_per_year *= 1.0+inflation.iloc[i]
+            expenses_per_year *= 1.0 + inflation.iloc[i]
 
             # Adding stock investment increase
-            stock_gains = stock_returns.iloc[i] * (current_assets*stock_fraction)
+            stock_gains = stock_returns.iloc[i] * (current_assets * stock_fraction)
 
             # Adding bond investment increase
-            bond_gains = interest_rates.iloc[i] * (current_assets*(1-stock_fraction))
+            bond_gains = interest_rates.iloc[i] * (current_assets * (1 - stock_fraction))
 
             current_assets += stock_gains
             current_assets += bond_gains
@@ -123,11 +124,9 @@ def run_histories(starting_assets,
             # Getting old
             age += 1.0
 
-
         assets = np.array(assets)
 
-        mc_histories.append( (assets) )
-
+        mc_histories.append((assets))
 
     if plotting:
 
@@ -140,7 +139,7 @@ def run_histories(starting_assets,
         final_assets = []
         for i in range(n_mc):
             y = mc_histories[i] / 1e6
-            x = np.arange(starting_age, starting_age+y.size)
+            x = np.arange(starting_age, starting_age + y.size)
             plt.plot(x, y, color='gray', linewidth=0.5)
 
             final_assets.append(y[-1])
@@ -154,7 +153,6 @@ def run_histories(starting_assets,
 
         # plt.savefig('figs/histories.pdf')
 
-
         # Plot of age of death
         rcParams['figure.subplot.left'] = 0.15
         plt.figure()
@@ -162,9 +160,11 @@ def run_histories(starting_assets,
         final_ages = np.array(final_ages)
 
         max_age = 110
-        bins = np.linspace(int(starting_age)-0.5, max_age+0.5, max_age-starting_age+2)
+        bins = np.linspace(int(starting_age) - 0.5, max_age + 0.5, max_age - int(starting_age) + 2)
 
-        plt.hist(final_ages, bins=bins, normed=True)
+        plt.hist(final_ages, bins=bins, density=True)
+        # plt.show()
+        # plt.hist()
 
         plt.xlabel('Age of Death')
         plt.ylabel('Probability')
@@ -180,22 +180,22 @@ def run_histories(starting_assets,
 
     run_out_of_money_hist = np.array(final_assets < 0.0, dtype=np.float64)
     run_out_of_money = unc.ufloat(run_out_of_money_hist.mean(),
-                                  run_out_of_money_hist.std()/np.sqrt(n_mc))
+                                  run_out_of_money_hist.std() / np.sqrt(n_mc))
 
     if verbose:
-        print ' Chance of running out of money is {:%}'.format(run_out_of_money)
+        print(' Chance of running out of money is {:%}'.format(run_out_of_money))
 
     return run_out_of_money
 
 
 def how_much_to_save(
-                     acceptable_risk=0.01,
-                     yearly_expense=40e3,
-                     stock_fraction=0.5,
-                     starting_age=65,
-                     state_abbrev='CA',
-                     demographic_group='total',
-                     n_mc=500, plotting=False, verbose=False):
+        acceptable_risk=0.01,
+        yearly_expense=40e3,
+        stock_fraction=0.5,
+        starting_age=65,
+        state_abbrev='CA',
+        demographic_group='total',
+        n_mc=500, plotting=False, verbose=False):
     """
     Computes f(x) = f_0, where f is the MC simulation of the retirement
     process returning the probability of running out of money and
@@ -230,8 +230,8 @@ def how_much_to_save(
                                              n_mc=n_mc, plotting=False, verbose=False)
         return acceptable_risk - prob_outlive_savings.nominal_value
 
-    lo_bound = 5.0*yearly_expense
-    hi_bound = 40.0*yearly_expense
+    lo_bound = 5.0 * yearly_expense
+    hi_bound = 40.0 * yearly_expense
 
     while True:
         try:
@@ -245,14 +245,12 @@ def how_much_to_save(
     return res[0]
 
 
-
-
 def cascade_plot(yearly_expense,
                  stock_fraction,
                  starting_age,
                  state_abbrev,
                  demographic_group,
-                 stock_fractions = [0.25, 0.5, 0.75],
+                 stock_fractions=[0.25, 0.5, 0.75],
                  n_mc=5000):
     """
     Inputs:
@@ -282,13 +280,13 @@ def cascade_plot(yearly_expense,
 
         run_out_of_money = []
         for x in starting_assets:
-            p = 100*run_histories(x, 
-                                  yearly_expense,
-                                  stock_fraction,
-                                  starting_age,
-                                  state_abbrev,
-                                  demographic_group,
-                                  n_mc=n_mc)
+            p = 100 * run_histories(x,
+                                    yearly_expense,
+                                    stock_fraction,
+                                    starting_age,
+                                    state_abbrev,
+                                    demographic_group,
+                                    n_mc=n_mc)
             run_out_of_money.append(p)
 
             # Don't keep going for probability <1%
@@ -297,8 +295,8 @@ def cascade_plot(yearly_expense,
         run_out_of_money = np.array(run_out_of_money)
         n = run_out_of_money.size
 
-        plt.errorbar(starting_assets[:n]/1e6, unp.nominal_values(run_out_of_money),
-                     yerr=unp.std_devs(run_out_of_money), 
+        plt.errorbar(starting_assets[:n] / 1e6, unp.nominal_values(run_out_of_money),
+                     yerr=unp.std_devs(run_out_of_money),
                      capsize=0.0, marker='.', markersize=3.5, ls=next(linecycler),
                      label='{:.0%} stocks'.format(stock_fraction))
 
@@ -306,9 +304,9 @@ def cascade_plot(yearly_expense,
     plt.ylabel('Prob. of running out of money (%)')
 
     str_id = '{}-{}-{}-{}'.format(demographic_group, state_abbrev, starting_age,
-                                                yearly_expense)
+                                  yearly_expense)
     plt.title('{}-{}, starting at age {} with \${}/year expenses'.format(demographic_group, state_abbrev, starting_age,
-                                                yearly_expense))
+                                                                         yearly_expense))
 
     plt.legend(fontsize='x-small')
     plt.ylim(ymin=0, ymax=100)
@@ -319,18 +317,18 @@ def cascade_plot(yearly_expense,
 
 
 def sensitivity_plots(
-                      state_abbrev='CA',
-                      demographic_group='total',
-                      yearly_expense=40e3,
-                      yearly_expenses=np.logspace(3.69897, 5, 10),
-                      starting_age=65,
-                      starting_ages=np.linspace(40, 85, 10),
-                      acceptable_risk=0.02,
-                      acceptable_risks=np.logspace(-3, -0.2, 7),
-                      stock_fraction=0.5,
-                      stock_fractions=np.linspace(0.0, 1.0, 11),
-                      n_mc=5000,
-                      verbose=False):
+        state_abbrev='CA',
+        demographic_group='total',
+        yearly_expense=40e3,
+        yearly_expenses=np.logspace(3.69897, 5, 10),
+        starting_age=65,
+        starting_ages=np.linspace(40, 85, 10),
+        acceptable_risk=0.02,
+        acceptable_risks=np.logspace(-3, -0.2, 7),
+        stock_fraction=0.5,
+        stock_fractions=np.linspace(0.0, 1.0, 11),
+        n_mc=5000,
+        verbose=False):
     """
     Inputs:
       
@@ -352,27 +350,26 @@ def sensitivity_plots(
 
     """
 
-    factors = { 
-                'stock_fraction'  : {'value' : stock_fraction,  'values' : stock_fractions },
-                'acceptable_risk' : {'value' : acceptable_risk, 'values' : acceptable_risks },
-                 'yearly_expense' : {'value' : yearly_expense,  'values' : yearly_expenses },
-                   'starting_age' : {'value' : starting_age,    'values' : starting_ages },
-              }
+    factors = {
+        'stock_fraction': {'value': stock_fraction, 'values': stock_fractions},
+        'acceptable_risk': {'value': acceptable_risk, 'values': acceptable_risks},
+        'yearly_expense': {'value': yearly_expense, 'values': yearly_expenses},
+        'starting_age': {'value': starting_age, 'values': starting_ages},
+    }
 
     rcParams['figure.figsize'] = [9, 11]
     fig, axs = plt.subplots(nrows=len(factors.keys()), sharey=True)
 
-
     base_opts = {
-                  'stock_fraction'    : stock_fraction,
-                  'acceptable_risk'   : acceptable_risk,
-                  'yearly_expense'    : yearly_expense,
-                  'starting_age'      : starting_age,
-                  'state_abbrev'      : state_abbrev,
-                  'demographic_group' : demographic_group,
-                }
+        'stock_fraction': stock_fraction,
+        'acceptable_risk': acceptable_risk,
+        'yearly_expense': yearly_expense,
+        'starting_age': starting_age,
+        'state_abbrev': state_abbrev,
+        'demographic_group': demographic_group,
+    }
 
-    base_save = how_much_to_save(**base_opts)/1e6
+    base_save = how_much_to_save(**base_opts) / 1e6
 
     for i, factor in enumerate(factors.keys()):
 
@@ -381,42 +378,39 @@ def sensitivity_plots(
         factor_res = []
 
         for factor_value in factors[factor]['values']:
-
             opts[factor] = factor_value
 
-            factor_res.append( how_much_to_save(**opts)/1e6 )
-
+            factor_res.append(how_much_to_save(**opts) / 1e6)
 
         axs[i].plot(factors[factor]['values'], factor_res,
                     marker='.', markersize=3.5, ls='-', color='gray')
 
         axs[i].plot(base_opts[factor], base_save,
                     marker='o', markersize=5.5, color='black')
-                 
+
         axs[i].set_xlabel(factor)
 
     axs[1].set_ylabel('Amount to save (million USD)')
     fig.tight_layout()
 
     if verbose:
-        print ' You should save ${:.2f} million.'.format(base_save)
+        print(' You should save ${:.2f} million.'.format(base_save))
 
-    #fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
+    # fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
 
     return fig
 
 
-
 if __name__ == '__main__':
     starting_age = 65.0
-    state_abbrev = 'IA'
-    demographic_group = 'wf'
+    state_abbrev = 'IL'
+    demographic_group = 'wm'
 
     # Expenses per year
-    yearly_expense = 50e3
+    yearly_expense = 200e3
 
     # Assets
-    starting_assets = 3e6
+    starting_assets = 5e6
 
     # Investment allocation
     stock_fraction = 0.5
@@ -433,7 +427,7 @@ if __name__ == '__main__':
     #  that you are comfortable with.
     acceptable_risk = 0.01  # = 1%
 
-    savings_goal = how_much_to_save(acceptable_risk, 
+    savings_goal = how_much_to_save(acceptable_risk,
                                     yearly_expense,
                                     stock_fraction,
                                     starting_age,
@@ -441,14 +435,14 @@ if __name__ == '__main__':
                                     demographic_group)
 
     # Run many simulations over a range of input variables.
-    sens_fig = sensitivity_plots(acceptable_risk=acceptable_risk, 
+    sens_fig = sensitivity_plots(acceptable_risk=acceptable_risk,
                                  yearly_expense=yearly_expense,
                                  stock_fraction=stock_fraction,
                                  starting_age=starting_age,
                                  state_abbrev=state_abbrev,
                                  demographic_group=demographic_group
-                                )
-                     
+                                 )
+
     '''
     # Run many simulations over a range of starting assets and stock fractions
     cascade_plot(yearly_expense,
