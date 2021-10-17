@@ -8,3 +8,4 @@ cdc_life_tables/data/*
 figs
 figs/*
 .idea/
+.ipynb_checkpoints
